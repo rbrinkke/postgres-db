@@ -30,8 +30,7 @@ services:
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
 
     networks:
-      - activity-network        # For auth-api
-      - write-api-network       # For write-api (future)
+      - activity-network
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d activitydb"]
@@ -65,19 +64,12 @@ services:
 # =============================================================================
 # NETWORKS
 # =============================================================================
-# Join both API networks for shared database access
+# Central network for all Activity app services
 # =============================================================================
 
 networks:
   activity-network:
-    name: activity-network
-    driver: bridge
-    external: true  # Created by auth-api
-
-  write-api-network:
-    name: write-api-network
-    driver: bridge
-    external: true  # Created by write-api
+    external: true
 
 # =============================================================================
 # VOLUMES
