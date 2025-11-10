@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # =============================================================================
+  # Central PostgreSQL Database
+  # =============================================================================
+  # Shared database for auth-api and write-api
+  # Port: 5441 (systematic allocation - index 8)
+  # =============================================================================
+
+  postgres-db:
+    image: postgres:16-alpine
+    container_name: activity-postgres-db
+    restart: unless-stopped
+
+    ports:
+      - "5441:5432"  # External: 5441, Internal: 5432
+
+    environment:
+      POSTGRES_DB: activitydb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secure_password_change_in_prod}
+      POSTGRES_INITDB_ARGS: "-E UTF8 --locale=en_US.UTF-8"
+
+    volumes:
+      # Persistent data
+      - postgres-db-data:/var/lib/postgresql/data
+
+      # Init scripts (run on first startup)
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - activity-network        # For auth-api
+      - write-api-network       # For write-api (future)
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d activitydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    # Resource limits (optional, adjust based on needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+        labels: "service,environment"
+
+    labels:
+      service: "postgres-db"
+      environment: "development"
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+# Join both API networks for shared database access
+# =============================================================================
+
+networks:
+  activity-network:
+    name: activity-network
+    driver: bridge
+    external: true  # Created by auth-api
+
+  write-api-network:
+    name: write-api-network
+    driver: bridge
+    external: true  # Created by write-api
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+
+volumes:
+  postgres-db-data:
+    name: activity-postgres-db-data
+    driver: local
